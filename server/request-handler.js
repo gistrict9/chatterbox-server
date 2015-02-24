@@ -12,47 +12,53 @@ this file and include it in basic-server.js so that it actually works.
 
 **************************************************************/
 
-var requestHandler = function(request, response) {
-  // Request and Response come from node's http module.
-  //
-  // They include information about both the incoming request, such as
-  // headers and URL, and about the outgoing response, such as its status
-  // and content.
-  //
-  // Documentation for both request and response can be found in the HTTP section at
-  // http://nodejs.org/documentation/api/
+var rooms = {};
+rooms['messages'] = [{"username":"test", "message":"test message"}, {"username":"test2", "message":"test message2"}];
+rooms['room1'] = [{"username":"test", "message":"test message"}, {"username":"test2", "message":"test message2"}];
 
-  // Do some basic logging.
-  //
-  // Adding more logging to your server can be an easy way to get passive
-  // debugging help, but you should always be careful about leaving stray
-  // console.logs in your code.
-  console.log("Serving request type " + request.method + " for url " + request.url);
+var requestHandler = function(request, response) {
+  var userData = '';
 
   // The outgoing status.
   var statusCode = 200;
 
-  // See the note below about CORS headers.
+  //Get the room name
+  var room = request.url.split("/")[2];
+  console.log("ROOM:", request.url, room)
+
+  if (!rooms.hasOwnProperty(room)) {
+    statusCode = 404;
+  }
+
+  // POST Request
+  if (request.method === 'POST') {
+
+    statusCode = 201;
+
+    request.on('data', function(data) {
+      userData += data;
+    });
+
+    request.on('end', function() {
+      var toSave = JSON.parse(userData);
+      rooms[room].unshift(toSave);
+    });
+
+  }
+
   var headers = defaultCorsHeaders;
 
-  // Tell the client we are sending them plain text.
-  //
-  // You will need to change this if you are sending something
-  // other than plain text, like JSON or HTML.
   headers['Content-Type'] = "text/plain";
 
-  // .writeHead() writes to the request line and headers of the response,
-  // which includes the status and all headers.
   response.writeHead(statusCode, headers);
 
-  // Make sure to always call response.end() - Node may not send
-  // anything back to the client until you do. The string you pass to
-  // response.end() will be the body of the response - i.e. what shows
-  // up in the browser.
-  //
-  // Calling .end "flushes" the response's internal buffer, forcing
-  // node to actually send all the data over to the client.
-  response.end("Hello, World!");
+  //** WRAP OUTPUT IN results:
+  var output = {};
+  output.results = rooms[room];
+
+  response.end(JSON.stringify(output));
+
+
 };
 
 // These headers will allow Cross-Origin Resource Sharing (CORS).
@@ -71,3 +77,4 @@ var defaultCorsHeaders = {
   "access-control-max-age": 10 // Seconds.
 };
 
+exports.requestHandler = requestHandler;
